@@ -106,3 +106,4 @@ if update_btn or 'first_run' not in st.session_state:
     c3.metric("Eutectic Mole Frac (xB)", f"{xB_e:.3f}")
 else:
     st.info("Click 'Update Plot' to generate the diagram with current parameters.")
+
