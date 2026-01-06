@@ -2,7 +2,7 @@
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](你的Streamlit链接)
 
-This tool is designed for calculating and plotting binary phase diagrams based on thermodynamic equations. It was developed as part of a research submission to **Chemical Engineering Journal (CEJ)**.
+This tool is designed for calculating and plotting binary phase diagrams based on thermodynamic equations. It was developed as part of a research submission to **Journal of Chemical Education(JCE)**.
 
 ## 🌟 Key Features
 * **Dual Axis Display**: Shows both Weight Percent (wt%) and Mole Fraction (xB).
