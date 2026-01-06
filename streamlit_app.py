@@ -23,17 +23,17 @@ st.sidebar.header("Input Parameters")
 with st.sidebar:
     st.subheader("Component A (Left)")
     A_name = st.text_input("Name of A", "Cd")
-    A1 = st.number_input("Molecular Weight (A1)", value=112.41)
-    A2 = st.number_input("Melting Point °C (A2)", value=321.1)
-    A3 = st.number_input("Molar Enthalpy kJ/mol (A3)", value=6.19)
+    A1 = st.number_input("Molecular Weight", value=112.41)
+    A2 = st.number_input("Melting Point °C", value=321.1)
+    A3 = st.number_input("Molar Enthalpy kJ/mol", value=6.19)
 
     st.divider()
 
     st.subheader("Component B (Right)")
     B_name = st.text_input("Name of B", "Bi")
-    B1 = st.number_input("Molecular Weight (B1)", value=208.98)
-    B2 = st.number_input("Melting Point °C (B2)", value=271.4)
-    B3 = st.number_input("Molar Enthalpy kJ/mol (B3)", value=11.3)
+    B1 = st.number_input("Molecular Weight", value=208.98)
+    B2 = st.number_input("Melting Point °C", value=271.4)
+    B3 = st.number_input("Molar Enthalpy kJ/mol", value=11.3)
 
     st.divider()
     
@@ -164,3 +164,4 @@ if update_btn or 'first_run' not in st.session_state:
 
 else:
     st.info("Click 'Update Plot' to refresh the diagram.")
+
