@@ -133,16 +133,16 @@ if update_btn or 'first_run' not in st.session_state:
 
     # 修改：物质名称显示逻辑
     # 使用 axes fraction 确保文字在坐标轴的正下方
-    ax1.text(0, -0.1, A_name, transform=ax1.transAxes, ha='center', va='top', 
+    ax1.text(0, -0.05, A_name, transform=ax1.transAxes, ha='center', va='top', 
              fontsize=14, fontweight='bold', color='blue')
-    ax1.text(1, -0.1, B_name, transform=ax1.transAxes, ha='center', va='top', 
+    ax1.text(1, -0.05, B_name, transform=ax1.transAxes, ha='center', va='top', 
              fontsize=14, fontweight='bold', color='red')
 
     # 轴属性
     ax1.set_xlim(x_limit)
     all_temps = np.concatenate([T_liq_A, T_liq_B])
     ax1.set_ylim(np.min(all_temps) - 20, np.max(all_temps) + 30) # 略微增加顶部高度给文字留空
-    ax1.set_ylabel("Temperature (°C)", fontweight='bold')
+    ax1.set_ylabel("Temperature (°C)", fontsize=14, fontweight='bold')
     ax1.set_xlabel(st.session_state.axis_mode, fontweight='bold')
 
     # 双轴修正
@@ -174,4 +174,5 @@ if update_btn or 'first_run' not in st.session_state:
 
 else:
     st.info("Click 'Update Plot' to refresh the diagram.")
+
 
