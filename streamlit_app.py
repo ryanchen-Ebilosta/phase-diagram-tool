@@ -51,21 +51,24 @@ if update_btn or 'first_run' not in st.session_state:
     # 4. Plotting Logic
     fig, ax1 = plt.subplots(figsize=(10, 7))
 
-    # Requirement 2: wt% range from 0.1 to 100 (mapped to 0.1% - 100%)
-    wtB_fine = np.linspace(0.1, 100, 1000)
+    # 修改点 1: x轴范围设为 0.05 到 1.0 (这里的 1.0 对应 100 wt%)
+    # 如果你是指 mole fraction 0.05~1.0，则需要先生成 xB 再转 wtB。
+    # 这里按常规理解：wt% 范围 0.05% 到 100%
+    wtB_fine = np.linspace(0.05, 100, 1000)
     xB_fine = (wtB_fine/B1) / (wtB_fine/B1 + (100-wtB_fine)/A1)
+    
     T_liq_A = np.array([get_TA(1-x) for x in xB_fine])
     T_liq_B = np.array([get_TB(x) for x in xB_fine])
 
-    # Requirement 1: Eutectic line as Solid Black Line
+    # 绘制三相线 (Eutectic Line)
     ax1.axhline(y=TE, color='black', linestyle='-', lw=1.5, label='Eutectic Line')
 
-    # Requirement 2: Piecewise lines (Solid above TE, Dashed below TE)
-    # Component A Liquidus
+    # 修改点 2: 保持 Piecewise 逻辑 (Solid above TE, Dashed below TE)
+    # Component A 液相线
     ax1.plot(wtB_fine[T_liq_A >= TE], T_liq_A[T_liq_A >= TE], 'b-', lw=2, label=f'Liquidus {A_name} (Stable)')
     ax1.plot(wtB_fine[T_liq_A < TE], T_liq_A[T_liq_A < TE], 'b--', lw=1.5, alpha=0.6, label=f'Liquidus {A_name} (Metastable)')
     
-    # Component B Liquidus
+    # Component B 液相线
     ax1.plot(wtB_fine[T_liq_B >= TE], T_liq_B[T_liq_B >= TE], 'r-', lw=2, label=f'Liquidus {B_name} (Stable)')
     ax1.plot(wtB_fine[T_liq_B < TE], T_liq_B[T_liq_B < TE], 'r--', lw=1.5, alpha=0.6, label=f'Liquidus {B_name} (Metastable)')
 
@@ -76,24 +79,29 @@ if update_btn or 'first_run' not in st.session_state:
                  xy=(wtB_e, TE), xytext=(wtB_e, TE + 20),
                  ha='center', arrowprops=dict(arrowstyle='->'))
 
-    # Requirement 3: Y-axis range (TE - 20 to Max Melting Point + 50)
-    ax1.set_xlim(0, 100)
-    ax1.set_ylim(TE - 20, max(A2, B2) + 50)
+    # 修改点 3: 纵轴显示范围 (Min Temp - 20 to Max Temp + 20)
+    all_temps = np.concatenate([T_liq_A, T_liq_B])
+    min_temp = np.min(all_temps)
+    max_temp = np.max(all_temps)
+    
+    ax1.set_xlim(0.05, 100) # x轴起始设为 0.05
+    ax1.set_ylim(min_temp - 20, max_temp + 20)
     
     ax1.set_xlabel(f"Weight Percent of {B_name} (wt%)", fontweight='bold')
     ax1.set_ylabel("Temperature (°C)", fontweight='bold')
 
-    # Dual Axis
+    # Dual Axis (Mole Fraction)
     ax2 = ax1.twiny()
     ax2.set_xlim(ax1.get_xlim())
-    xB_ticks = np.linspace(0, 1, 6)
+    # 重新映射刻度，使上方的 xB 刻度与下方的 wt% 对应
+    xB_ticks = np.array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     wtB_ticks = (xB_ticks * B1) / (xB_ticks * B1 + (1 - xB_ticks) * A1) * 100
     ax2.set_xticks(wtB_ticks)
     ax2.set_xticklabels([f"{x:.1f}" for x in xB_ticks])
     ax2.set_xlabel(f"Mole Fraction of {B_name} ($x_B$)", fontweight='bold')
 
     ax1.grid(True, ls=':', alpha=0.4)
-    ax1.legend(loc='best', fontsize='small')
+    ax1.legend(loc='upper right', fontsize='small')
 
     # 5. Display Plot
     st.pyplot(fig)
@@ -106,4 +114,3 @@ if update_btn or 'first_run' not in st.session_state:
     c3.metric("Eutectic Mole Frac (xB)", f"{xB_e:.3f}")
 else:
     st.info("Click 'Update Plot' to generate the diagram with current parameters.")
-
