@@ -127,15 +127,15 @@ if update_btn or 'first_run' not in st.session_state:
             ax1.text(vx, v_tb + 5, f"{v_tb:.1f}°C", color='red', fontsize=9, ha='center')
 
     # 共晶点标注 (固定在绘图逻辑中)
-    ax1.scatter(eutectic_x, TE, color='black', s=60, zorder=10)
-    ax1.text(eutectic_x, TE + 10, f"Eutectic Point\n({eutectic_x:.2f}, {TE:.1f}°C)", 
-             ha='center', fontsize=9, fontweight='bold', bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
+    # ax1.scatter(eutectic_x, TE, color='black', s=60, zorder=10)
+    # ax1.text(eutectic_x, TE + 10, f"Eutectic Point\n({eutectic_x:.2f}, {TE:.1f}°C)", 
+    #         ha='center', fontsize=9, fontweight='bold', bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
 
     # 修改：物质名称显示逻辑
     # 使用 axes fraction 确保文字在坐标轴的正下方
-    ax1.text(0, -0.15, A_name, transform=ax1.transAxes, ha='center', va='top', 
+    ax1.text(0, -0.1, A_name, transform=ax1.transAxes, ha='center', va='top', 
              fontsize=14, fontweight='bold', color='blue')
-    ax1.text(1, -0.15, B_name, transform=ax1.transAxes, ha='center', va='top', 
+    ax1.text(1, -0.1, B_name, transform=ax1.transAxes, ha='center', va='top', 
              fontsize=14, fontweight='bold', color='red')
 
     # 轴属性
@@ -174,3 +174,4 @@ if update_btn or 'first_run' not in st.session_state:
 
 else:
     st.info("Click 'Update Plot' to refresh the diagram.")
+
