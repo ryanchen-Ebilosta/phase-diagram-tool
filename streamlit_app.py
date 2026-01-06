@@ -39,12 +39,14 @@ with st.sidebar:
     
     st.subheader("Interactive Tools")
     
-    # 切换按钮
+    # 切换按钮逻辑：切换时重置垂线位置以防数值越界
     if st.button("Switch X-Axis Mode"):
         st.session_state.axis_mode = "Mole Fraction (xB)" if st.session_state.axis_mode == "Weight Percent (wt%)" else "Weight Percent (wt%)"
+        st.session_state.v_line_pos = None 
     st.caption(f"Current Main Axis: **{st.session_state.axis_mode}**")
 
-    target_val = st.number_input(f"Input Comp. ({st.session_state.axis_mode})", 0.0, 100.0 if "wt" in st.session_state.axis_mode else 1.0, 0.5)
+    max_val = 100.0 if "wt" in st.session_state.axis_mode else 1.0
+    target_val = st.number_input(f"Input Comp. ({st.session_state.axis_mode})", 0.0, max_val, max_val/2)
     if st.button("Apply Vertical Line"):
         st.session_state.v_line_pos = target_val
     
@@ -73,12 +75,10 @@ def mole_to_wt_fraction(xB):
 if update_btn or 'first_run' not in st.session_state:
     st.session_state['first_run'] = False
     
-    # Calculate Eutectic Point (Thermodynamic calculation in mole fraction)
     xB_e = fsolve(lambda xb: get_TA(1-xb) - get_TB(xb), 0.5)[0]
     TE = get_TA(1 - xB_e)
     wtB_e = mole_to_wt_fraction(xB_e)
 
-    # 4. Plotting Logic
     fig, ax1 = plt.subplots(figsize=(10, 7))
 
     # 根据主轴模式定义数据范围
@@ -88,24 +88,21 @@ if update_btn or 'first_run' not in st.session_state:
         xB_for_A = wt_to_mole_fraction(x_main_A)
         xB_for_B = wt_to_mole_fraction(x_main_B)
         x_limit = (0, 100)
-        v_line_x = st.session_state.v_line_pos if st.session_state.v_line_pos is not None else None
         eutectic_x = wtB_e
-    else: # Mole Fraction xB 模式
+    else: 
         x_main_A = np.linspace(0, 0.95, 1000)
         x_main_B = np.linspace(0.05, 1, 1000)
         xB_for_A = x_main_A
         xB_for_B = x_main_B
         x_limit = (0, 1.0)
-        v_line_x = st.session_state.v_line_pos if st.session_state.v_line_pos is not None else None
         eutectic_x = xB_e
 
     T_liq_A = np.array([get_TA(1-x) for x in xB_for_A])
     T_liq_B = np.array([get_TB(x) for x in xB_for_B])
 
-    # 绘制实线 (Stable)
+    # 绘制
     ax1.axhline(y=TE, color='black', linestyle='-', lw=1.5, label='Eutectic Line')
-    mask_A = T_liq_A >= TE
-    mask_B = T_liq_B >= TE
+    mask_A, mask_B = T_liq_A >= TE, T_liq_B >= TE
     ax1.plot(x_main_A[mask_A], T_liq_A[mask_A], 'b-', lw=2, label=f'Liquidus {A_name}')
     ax1.plot(x_main_B[mask_B], T_liq_B[mask_B], 'r-', lw=2, label=f'Liquidus {B_name}')
     
@@ -113,50 +110,51 @@ if update_btn or 'first_run' not in st.session_state:
         ax1.plot(x_main_A[~mask_A], T_liq_A[~mask_A], 'b--', lw=1.5, alpha=0.5)
         ax1.plot(x_main_B[~mask_B], T_liq_B[~mask_B], 'r--', lw=1.5, alpha=0.5)
         
-        # 垂直线逻辑
-        if v_line_x is not None:
-            if st.session_state.axis_mode == "Weight Percent (wt%)":
-                v_xb = wt_to_mole_fraction(v_line_x)
-            else:
-                v_xb = v_line_x
-            
+        if st.session_state.v_line_pos is not None:
+            vx = st.session_state.v_line_pos
+            v_xb = vx if "xB" in st.session_state.axis_mode else wt_to_mole_fraction(vx)
             v_ta, v_tb = get_TA(1 - v_xb), get_TB(v_xb)
-            ax1.axvline(x=v_line_x, color='green', linestyle=':', lw=2)
-            ax1.scatter([v_line_x, v_line_x], [v_ta, v_tb], color='green', s=40, zorder=6)
-            ax1.text(v_line_x + (x_limit[1]*0.01), v_ta, f"{v_ta:.1f}°C", color='blue', fontsize=9)
-            ax1.text(v_line_x + (x_limit[1]*0.01), v_tb, f"{v_tb:.1f}°C", color='red', fontsize=9)
+            ax1.axvline(x=vx, color='green', linestyle=':', lw=2)
+            ax1.scatter([vx, vx], [v_ta, v_tb], color='green', s=40, zorder=6)
+            ax1.text(vx + (x_limit[1]*0.01), v_ta, f"{v_ta:.1f}°C", color='blue', fontsize=9)
+            ax1.text(vx + (x_limit[1]*0.01), v_tb, f"{v_tb:.1f}°C", color='red', fontsize=9)
 
     ax1.scatter(eutectic_x, TE, color='black', zorder=5)
 
-    # 修改点 2: 物质名称显示在相图下方两侧
-    ax1.annotate(A_name, xy=(0, 0), xytext=(0, -35), xycoords='axes fraction', 
-                 textcoords='offset points', ha='center', fontweight='bold', color='blue', fontsize=12)
-    ax1.annotate(B_name, xy=(1, 0), xytext=(0, -35), xycoords='axes fraction', 
-                 textcoords='offset points', ha='center', fontweight='bold', color='red', fontsize=12)
+    # 物质名称标注 (在 X 轴下方)
+    ax1.annotate(A_name, xy=(0, 0), xytext=(0, -45), xycoords='axes fraction', 
+                 ha='center', fontweight='bold', color='blue', fontsize=12)
+    ax1.annotate(B_name, xy=(1, 0), xytext=(0, -45), xycoords='axes fraction', 
+                 ha='center', fontweight='bold', color='red', fontsize=12)
 
-    # 设置轴和辅助轴
     ax1.set_xlim(x_limit)
-    all_temps = np.concatenate([T_liq_A, T_liq_B])
-    ax1.set_ylim(np.min(all_temps) - 20, np.max(all_temps) + 20)
+    ax1.set_ylim(np.min(np.concatenate([T_liq_A, T_liq_B])) - 20, np.max(np.concatenate([T_liq_A, T_liq_B])) + 20)
     ax1.set_ylabel("Temperature (°C)", fontweight='bold')
     ax1.set_xlabel(st.session_state.axis_mode, fontweight='bold')
 
-    # 辅助轴逻辑
+    # --- 修复后的双轴逻辑 ---
     ax2 = ax1.twiny()
     ax2.set_xlim(ax1.get_xlim())
+    
     if st.session_state.axis_mode == "Weight Percent (wt%)":
+        # 主轴是 wt%，上方辅轴显示均匀的 xB 刻度 (0, 0.2, ..., 1.0)
         xB_ticks = np.linspace(0, 1, 6)
-        ax2.set_xticks(mole_to_wt_fraction(xB_ticks))
+        # 将 xB 的位置映射到 wt% 的坐标系中
+        tick_positions = [mole_to_wt_fraction(x) for x in xB_ticks]
+        ax2.set_xticks(tick_positions)
         ax2.set_xticklabels([f"{x:.1f}" for x in xB_ticks])
-        ax2.set_xlabel(f"Mole Fraction of {B_name} ($x_B$)", color='gray', alpha=0.7)
+        ax2.set_xlabel(f"Mole Fraction of {B_name} ($x_B$)", color='gray', fontsize=9)
     else:
+        # 主轴是 xB，上方辅轴显示均匀的 wt% 刻度 (0, 20, ..., 100)
         wt_ticks = np.linspace(0, 100, 6)
-        ax2.set_xticks(wt_ticks / 100) # 将wt%映射到0-1刻度上显示
+        # 将 wt% 的位置映射到 xB 的坐标系中
+        tick_positions = [wt_to_mole_fraction(w) for w in wt_ticks]
+        ax2.set_xticks(tick_positions)
         ax2.set_xticklabels([f"{int(x)}" for x in wt_ticks])
-        ax2.set_xlabel(f"Weight Percent of {B_name} (wt%)", color='gray', alpha=0.7)
+        ax2.set_xlabel(f"Weight Percent of {B_name} (wt%)", color='gray', fontsize=9)
 
     ax1.grid(True, ls=':', alpha=0.4)
-    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.18), ncol=3)
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=3)
     plt.tight_layout()
     st.pyplot(fig)
 
@@ -166,6 +164,5 @@ if update_btn or 'first_run' not in st.session_state:
     c1.metric("Eutectic Temperature", f"{TE:.2f} °C")
     c2.metric(f"Eutectic ({B_name} wt%)", f"{wtB_e:.2f} %")
     c3.metric(f"Eutectic ({B_name} xB)", f"{xB_e:.3f}")
-
 else:
     st.info("Click 'Update Plot' to refresh the diagram.")
