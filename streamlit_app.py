@@ -39,7 +39,6 @@ with st.sidebar:
     
     st.subheader("Interactive Tools")
     
-    # 切换按钮逻辑：切换时重置垂线位置以防数值越界
     if st.button("Switch X-Axis Mode"):
         st.session_state.axis_mode = "Mole Fraction (xB)" if st.session_state.axis_mode == "Weight Percent (wt%)" else "Weight Percent (wt%)"
         st.session_state.v_line_pos = None 
@@ -75,13 +74,16 @@ def mole_to_wt_fraction(xB):
 if update_btn or 'first_run' not in st.session_state:
     st.session_state['first_run'] = False
     
+    # 计算共晶点
     xB_e = fsolve(lambda xb: get_TA(1-xb) - get_TB(xb), 0.5)[0]
     TE = get_TA(1 - xB_e)
     wtB_e = mole_to_wt_fraction(xB_e)
 
+    # 4. Plotting Logic
     fig, ax1 = plt.subplots(figsize=(10, 7))
+    plt.subplots_adjust(bottom=0.2) # 关键：增加底部间距以显示物质名称
 
-    # 根据主轴模式定义数据范围
+    # 确定主轴范围
     if st.session_state.axis_mode == "Weight Percent (wt%)":
         x_main_A = np.linspace(0, 95, 1000)
         x_main_B = np.linspace(5, 100, 1000)
@@ -100,69 +102,75 @@ if update_btn or 'first_run' not in st.session_state:
     T_liq_A = np.array([get_TA(1-x) for x in xB_for_A])
     T_liq_B = np.array([get_TB(x) for x in xB_for_B])
 
-    # 绘制
+    # 绘制共晶线
     ax1.axhline(y=TE, color='black', linestyle='-', lw=1.5, label='Eutectic Line')
+    
+    # 绘制曲线 (Stable)
     mask_A, mask_B = T_liq_A >= TE, T_liq_B >= TE
     ax1.plot(x_main_A[mask_A], T_liq_A[mask_A], 'b-', lw=2, label=f'Liquidus {A_name}')
     ax1.plot(x_main_B[mask_B], T_liq_B[mask_B], 'r-', lw=2, label=f'Liquidus {B_name}')
     
+    # 辅助元素逻辑
     if st.session_state.show_metastable:
+        # 虚线
         ax1.plot(x_main_A[~mask_A], T_liq_A[~mask_A], 'b--', lw=1.5, alpha=0.5)
         ax1.plot(x_main_B[~mask_B], T_liq_B[~mask_B], 'r--', lw=1.5, alpha=0.5)
         
+        # 垂线和交点
         if st.session_state.v_line_pos is not None:
             vx = st.session_state.v_line_pos
             v_xb = vx if "xB" in st.session_state.axis_mode else wt_to_mole_fraction(vx)
             v_ta, v_tb = get_TA(1 - v_xb), get_TB(v_xb)
             ax1.axvline(x=vx, color='green', linestyle=':', lw=2)
             ax1.scatter([vx, vx], [v_ta, v_tb], color='green', s=40, zorder=6)
-            ax1.text(vx + (x_limit[1]*0.01), v_ta, f"{v_ta:.1f}°C", color='blue', fontsize=9)
-            ax1.text(vx + (x_limit[1]*0.01), v_tb, f"{v_tb:.1f}°C", color='red', fontsize=9)
+            ax1.text(vx, v_ta + 5, f"{v_ta:.1f}°C", color='blue', fontsize=9, ha='center')
+            ax1.text(vx, v_tb + 5, f"{v_tb:.1f}°C", color='red', fontsize=9, ha='center')
 
-    ax1.scatter(eutectic_x, TE, color='black', zorder=5)
+    # 共晶点标注 (固定在绘图逻辑中)
+    ax1.scatter(eutectic_x, TE, color='black', s=60, zorder=10)
+    ax1.text(eutectic_x, TE + 10, f"Eutectic Point\n({eutectic_x:.2f}, {TE:.1f}°C)", 
+             ha='center', fontsize=9, fontweight='bold', bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
 
-    # 物质名称标注 (在 X 轴下方)
-    ax1.annotate(A_name, xy=(0, 0), xytext=(0, -45), xycoords='axes fraction', 
-                 ha='center', fontweight='bold', color='blue', fontsize=12)
-    ax1.annotate(B_name, xy=(1, 0), xytext=(0, -45), xycoords='axes fraction', 
-                 ha='center', fontweight='bold', color='red', fontsize=12)
+    # 修改：物质名称显示逻辑
+    # 使用 axes fraction 确保文字在坐标轴的正下方
+    ax1.text(0, -0.15, A_name, transform=ax1.transAxes, ha='center', va='top', 
+             fontsize=14, fontweight='bold', color='blue')
+    ax1.text(1, -0.15, B_name, transform=ax1.transAxes, ha='center', va='top', 
+             fontsize=14, fontweight='bold', color='red')
 
+    # 轴属性
     ax1.set_xlim(x_limit)
-    ax1.set_ylim(np.min(np.concatenate([T_liq_A, T_liq_B])) - 20, np.max(np.concatenate([T_liq_A, T_liq_B])) + 20)
+    all_temps = np.concatenate([T_liq_A, T_liq_B])
+    ax1.set_ylim(np.min(all_temps) - 20, np.max(all_temps) + 30) # 略微增加顶部高度给文字留空
     ax1.set_ylabel("Temperature (°C)", fontweight='bold')
     ax1.set_xlabel(st.session_state.axis_mode, fontweight='bold')
 
-    # --- 修复后的双轴逻辑 ---
+    # 双轴修正
     ax2 = ax1.twiny()
     ax2.set_xlim(ax1.get_xlim())
-    
     if st.session_state.axis_mode == "Weight Percent (wt%)":
-        # 主轴是 wt%，上方辅轴显示均匀的 xB 刻度 (0, 0.2, ..., 1.0)
         xB_ticks = np.linspace(0, 1, 6)
-        # 将 xB 的位置映射到 wt% 的坐标系中
-        tick_positions = [mole_to_wt_fraction(x) for x in xB_ticks]
-        ax2.set_xticks(tick_positions)
+        ax2.set_xticks([mole_to_wt_fraction(x) for x in xB_ticks])
         ax2.set_xticklabels([f"{x:.1f}" for x in xB_ticks])
-        ax2.set_xlabel(f"Mole Fraction of {B_name} ($x_B$)", color='gray', fontsize=9)
+        ax2.set_xlabel(f"Mole Fraction of {B_name} ($x_B$)", color='gray')
     else:
-        # 主轴是 xB，上方辅轴显示均匀的 wt% 刻度 (0, 20, ..., 100)
         wt_ticks = np.linspace(0, 100, 6)
-        # 将 wt% 的位置映射到 xB 的坐标系中
-        tick_positions = [wt_to_mole_fraction(w) for w in wt_ticks]
-        ax2.set_xticks(tick_positions)
+        ax2.set_xticks([wt_to_mole_fraction(w) for w in wt_ticks])
         ax2.set_xticklabels([f"{int(x)}" for x in wt_ticks])
-        ax2.set_xlabel(f"Weight Percent of {B_name} (wt%)", color='gray', fontsize=9)
+        ax2.set_xlabel(f"Weight Percent of {B_name} (wt%)", color='gray')
 
     ax1.grid(True, ls=':', alpha=0.4)
-    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=3)
-    plt.tight_layout()
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=3) # 调低图例位置
+
+    # 显示图片
     st.pyplot(fig)
 
-    # 6. Results
+    # 5. Numerical Results
     st.subheader("Numerical Results")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Eutectic Temperature", f"{TE:.2f} °C")
-    c2.metric(f"Eutectic ({B_name} wt%)", f"{wtB_e:.2f} %")
-    c3.metric(f"Eutectic ({B_name} xB)", f"{xB_e:.3f}")
+    res_c1, res_c2, res_c3 = st.columns(3)
+    res_c1.metric("Eutectic Temperature", f"{TE:.2f} °C")
+    res_c2.metric(f"Eutectic ({B_name} wt%)", f"{wtB_e:.2f} %")
+    res_c3.metric(f"Eutectic ({B_name} xB)", f"{xB_e:.3f}")
+
 else:
     st.info("Click 'Update Plot' to refresh the diagram.")
