@@ -71,8 +71,8 @@ if update_btn or 'first_run' not in st.session_state:
     # 4. Plotting Logic
     fig, ax1 = plt.subplots(figsize=(10, 7))
 
-    # 修改点 1: x轴范围设为 5 到 100
-    wtB_fine = np.linspace(5, 100, 1000)
+    # 修改点 1: x轴范围设为 0 到 100
+    wtB_fine = np.linspace(0, 100, 1000)
     xB_fine = wt_to_mole_fraction(wtB_fine)
     
     T_liq_A = np.array([get_TA(1-x) for x in xB_fine])
@@ -108,7 +108,7 @@ if update_btn or 'first_run' not in st.session_state:
 
     # 纵轴显示范围
     all_temps = np.concatenate([T_liq_A, T_liq_B])
-    ax1.set_xlim(5, 100)
+    ax1.set_xlim(5, 95)
     ax1.set_ylim(np.min(all_temps) - 20, np.max(all_temps) + 20)
     
     ax1.set_xlabel(f"Weight Percent of {B_name} (wt%)", fontweight='bold')
@@ -139,3 +139,4 @@ if update_btn or 'first_run' not in st.session_state:
 
 else:
     st.info("Click 'Update Plot' to generate the diagram.")
+
