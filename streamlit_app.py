@@ -332,18 +332,20 @@ if B_name != "无可用匹配" and A3 > 0 and B3 > 0:
 
   fact_url = get_fact_url(A_name, B_name, df_link)
   if fact_url:
-    st.success(
-        f"✅ 已成功匹配 **{A_name} - {B_name}** 体系的官方评定实验相图数据库记录！"
-    )
+#    st.success(
+#        f"✅ 已成功匹配 **{A_name} - {B_name}** 体系的官方评定实验相图数据库记录！"
+#    )
     st.link_button(
-        f"🔗 在 FACT-Web 中打开 {A_name}-{B_name} 标准实验相图",
+        f"🔗 Open the standard Phase Diagram of {A_name}-{B_name} in FACT-Web",
         fact_url,
         use_container_width=True,
     )
   else:
     st.info(
-        f"💡 提示：当前实验对照数据库 (`diagram_link.xlsx`) 中暂未收录 **{A_name} - {B_name}**"
-        " 的直接匹配链接。"
+ #       f"💡 提示：当前实验对照数据库 (`diagram_link.xlsx`) 中暂未收录 **{A_name} - {B_name}**"
+ #       " 的直接匹配链接。"
+        f"💡 Phase Diagram of **{A_name} - {B_name}**"
+ #       " is not found!"
     )
 
 else:
