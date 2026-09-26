@@ -70,7 +70,7 @@ st.sidebar.header("Parameters & Controls")
 if df_db is not None and "Name" in df_db.columns:
     comp_names = df_db["Name"].dropna().tolist()
     # 在最前面或最后面加入自定义选项
-    comp_names.insert(0, "Custom Component (自定义A)")
+    comp_names.insert(0, "Custom Component (A)")
 
     # 侧边栏：组件 A 选择
     st.sidebar.subheader("Component A (Left)")
@@ -81,7 +81,7 @@ if df_db is not None and "Name" in df_db.columns:
         "Select A", comp_names, index=default_a_idx, key="sel_A"
     )
 
-    if A_name == "Custom Component (自定义A)":
+    if A_name == "Custom Component (A)":
         is_custom_a = True
         col_a1, col_a2, col_a3 = st.sidebar.columns(3)
         with col_a1:
@@ -119,7 +119,7 @@ if df_db is not None and "Name" in df_db.columns:
     # 侧边栏：组件 B 选择
     # ---------------------------------------------------------
     st.sidebar.subheader("Component B (Right)")
-    matches = ["Custom Component (自定义B)"]
+    matches = ["Custom Component (B)"]
 
     if not is_custom_a and row_a is not None:
         for col_idx in range(4, min(8, len(df_db.columns))):
@@ -141,7 +141,7 @@ if df_db is not None and "Name" in df_db.columns:
 
     B_name = st.sidebar.selectbox("Select B (Match)", matches, key="sel_B")
 
-    if B_name == "Custom Component (自定义B)":
+    if B_name == "Custom Component (B)":
         is_custom_b = True
         col_b1, col_b2, col_b3 = st.sidebar.columns(3)
         with col_b1:
