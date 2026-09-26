@@ -7,7 +7,12 @@ import streamlit as st
 # 1. Page Configuration
 st.set_page_config(page_title="Binary Phase Diagram Tool", layout="wide")
 
-st.title("Interactive Simple Eutectic Phase Diagram")
+#st.title("Interactive Simple Eutectic Phase Diagram")
+st.markdown(
+    "<h2 style='text-align: left; font-size: 28px;'>Predict Simple Eutectic"
+    "Interactive Simple Eutectic Phase Diagram</h2>",
+    unsafe_allow_html=True,
+)
 st.markdown("---")
 
 # Initialize Session State
