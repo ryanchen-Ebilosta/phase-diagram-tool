@@ -379,7 +379,8 @@ if A3 > 0 and B3 > 0:
     st.pyplot(fig)
 
     # 5. Numerical Results
-    st.subheader("Numerical Results")
+   # st.subheader("Numerical Results")
+    st.markdown("Numerical Results")
     res_c1, res_c2, res_c3 = st.columns(3)
     res_c1.metric("Eutectic Temperature", f"{TE:.2f} °C")
     res_c2.metric(f"Eutectic ({B_name} wt%)", f"{wtB_e:.2f} %")
