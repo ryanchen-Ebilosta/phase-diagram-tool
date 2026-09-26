@@ -9,8 +9,8 @@ st.set_page_config(page_title="Binary Phase Diagram Tool", layout="wide")
 
 #st.title("Interactive Simple Eutectic Phase Diagram")
 st.markdown(
-    "<h2 style='text-align: left; font-size: 28px;'>
-    Interactive Simple Eutectic Phase Diagram</h2>",
+    "<h2 style='text-align: left; font-size: 28px;'>"
+    "Interactive Simple Eutectic Phase Diagram</h2>",
     unsafe_allow_html=True,
 )
 st.markdown("---")
