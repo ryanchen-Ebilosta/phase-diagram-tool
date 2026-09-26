@@ -10,7 +10,7 @@ st.set_page_config(page_title="Binary Phase Diagram Tool", layout="wide")
 st.title("Binary Phase Diagram Analysis Tool (Academic Standard)")
 st.markdown("---")
 
-# 初始化 Session State
+# Initialize Session State
 if "show_metastable" not in st.session_state:
     st.session_state.show_metastable = True
 if "v_line_pos" not in st.session_state:
@@ -19,7 +19,7 @@ if "axis_mode" not in st.session_state:
     st.session_state.axis_mode = "Weight Percent (wt%)"
 
 
-# 加载 database.xlsx 数据
+# Load database.xlsx
 @st.cache_data
 def load_database():
     try:
@@ -31,7 +31,7 @@ def load_database():
         return None
 
 
-# 加载 diagram_link.xlsx 实验相图链接数据
+# Load diagram_link.xlsx reference data
 @st.cache_data
 def load_link_database():
     try:
@@ -47,7 +47,7 @@ df_db = load_database()
 df_link = load_link_database()
 
 
-# 定义双向匹配查找函数
+# Bidirectional matching function for reference links
 def get_fact_url(comp_a, comp_b, link_df):
     if (
         link_df is None
@@ -69,33 +69,38 @@ st.sidebar.header("Parameters & Controls")
 
 if df_db is not None and "Name" in df_db.columns:
     comp_names = df_db["Name"].dropna().tolist()
-    # 在最前面或最后面加入自定义选项
-    comp_names.insert(0, "Custom Component (A)")
+    comp_names.insert(0, "Custom Component A")
 
-    # 侧边栏：组件 A 选择
+    # Sidebar: Component A Selection
     st.sidebar.subheader("Component A (Left)")
-    default_a_idx = (
-        comp_names.index("Cd") if "Cd" in comp_names else 1
-    )  # 避开索引0的自定义
-    A_name = st.sidebar.selectbox(
+    default_a_idx = comp_names.index("Cd") if "Cd" in comp_names else 1
+    selected_A = st.sidebar.selectbox(
         "Select A", comp_names, index=default_a_idx, key="sel_A"
     )
 
-    if A_name == "Custom Component (A)":
+    if selected_A == "Custom Component A":
         is_custom_a = True
+        custom_input_a = st.sidebar.text_input(
+            "Name for Component A", value="Component A", key="cust_name_a"
+        )
+        A_name = (
+            custom_input_a.strip()
+            if custom_input_a.strip() != ""
+            else "Component A"
+        )
+
         col_a1, col_a2, col_a3 = st.sidebar.columns(3)
         with col_a1:
             A1 = st.number_input("MW", value=100.0, min_value=0.1, key="cust_A1")
         with col_a2:
-            A2 = st.number_input(
-                "MP (°C)", value=300.0, key="cust_A2"
-            )  # 熔点
+            A2 = st.number_input("MP (°C)", value=300.0, key="cust_A2")
         with col_a3:
             A3 = st.number_input(
                 "Enthalpy", value=10.0, min_value=0.01, key="cust_A3"
-            )  # 熔化焓 (kJ/mol)
+            )
     else:
         is_custom_a = False
+        A_name = selected_A
         matched_a = df_db[df_db["Name"] == A_name]
         row_a = matched_a.iloc[0] if not matched_a.empty else df_db.iloc[0]
 
@@ -116,10 +121,10 @@ if df_db is not None and "Name" in df_db.columns:
     st.sidebar.divider()
 
     # ---------------------------------------------------------
-    # 侧边栏：组件 B 选择
+    # Sidebar: Component B Selection
     # ---------------------------------------------------------
     st.sidebar.subheader("Component B (Right)")
-    matches = ["Custom Component (B)"]
+    matches = ["Custom Component B"]
 
     if not is_custom_a and row_a is not None:
         for col_idx in range(4, min(8, len(df_db.columns))):
@@ -133,16 +138,22 @@ if df_db is not None and "Name" in df_db.columns:
                 ):
                     matches.append(clean_val)
     else:
-        # 如果 A 是自定义的，B 也可以从整个数据库里选，或者直接选自定义
         all_db_names = df_db["Name"].dropna().tolist()
         for name in all_db_names:
             if name not in matches:
                 matches.append(name)
 
-    B_name = st.sidebar.selectbox("Select B (Match)", matches, key="sel_B")
+    selected_B = st.sidebar.selectbox("Select B (Match)", matches, key="sel_B")
 
-    if B_name == "Custom Component (B)":
+    if selected_B == "Custom Component B":
         is_custom_b = True
+        custom_input_b = st.sidebar.text_input(
+            "Name for Component B", value="Component B", key="cust_name_b"
+        )
+        B_name = (
+            custom_input_b.strip() if custom_input_b.strip() != "" else "Component B"
+        )
+
         col_b1, col_b2, col_b3 = st.sidebar.columns(3)
         with col_b1:
             B1 = st.number_input("MW ", value=120.0, min_value=0.1, key="cust_B1")
@@ -154,6 +165,7 @@ if df_db is not None and "Name" in df_db.columns:
             )
     else:
         is_custom_b = False
+        B_name = selected_B
         row_b_df = df_db[df_db["Name"].str.lower() == B_name.strip().lower()]
         if not row_b_df.empty:
             row_b = row_b_df.iloc[0]
@@ -174,14 +186,16 @@ if df_db is not None and "Name" in df_db.columns:
             )
 
 else:
-    st.sidebar.error("未找到 'database.xlsx' 或表格缺少 'Name' 列，请检查文件！")
+    st.sidebar.error(
+        "Database 'database.xlsx' not found or missing 'Name' column!"
+    )
     A_name, B_name = "Cd", "Bi"
     A1, A2, A3 = 112.41, 321.1, 6.19
     B1, B2, B3 = 208.98, 271.4, 11.3
 
 st.sidebar.divider()
 
-# 侧边栏：交互辅助工具
+# Sidebar: Interactive Tools
 st.sidebar.subheader("Interactive Tools")
 if st.sidebar.button("Switch X-Axis Mode"):
     st.session_state.axis_mode = (
@@ -231,7 +245,7 @@ def mole_to_wt_fraction(xB):
     return (xB * B1) / (xB * B1 + (1 - xB) * A1) * 100
 
 
-# 计算热力学数据
+# Calculate Thermodynamic Data
 if A3 > 0 and B3 > 0:
     try:
         xB_e = fsolve(lambda xb: get_TA(1 - xb) - get_TB(xb), 0.5)[0]
@@ -260,10 +274,10 @@ if A3 > 0 and B3 > 0:
     T_liq_A = np.array([get_TA(1 - x) for x in xB_for_A])
     T_liq_B = np.array([get_TB(x) for x in xB_for_B])
 
-    # 绘制水平共晶线
+    # Plot Eutectic Line
     ax1.axhline(y=TE, color="black", linestyle="-", lw=1.5, label="Eutectic Line")
 
-    # 绘制液相线 (Stable)
+    # Plot Stable Liquidus Curves
     mask_A, mask_B = T_liq_A >= TE, T_liq_B >= TE
     ax1.plot(
         x_main_A[mask_A],
@@ -280,7 +294,7 @@ if A3 > 0 and B3 > 0:
         label=f"Liquidus {B_name}",
     )
 
-    # 辅助元素逻辑
+    # Metastable Lines & Vertical Line Tool
     if st.session_state.show_metastable:
         ax1.plot(x_main_A[~mask_A], T_liq_A[~mask_A], "b--", lw=1.5, alpha=0.5)
         ax1.plot(x_main_B[~mask_B], T_liq_B[~mask_B], "r--", lw=1.5, alpha=0.5)
@@ -336,7 +350,7 @@ if A3 > 0 and B3 > 0:
     ax1.set_ylabel("Temperature (°C)", fontweight="bold", fontsize=14)
     ax1.set_xlabel(st.session_state.axis_mode, fontweight="bold", fontsize=14)
 
-    # 辅助双轴处理
+    # Twin X-Axis Setup
     ax2 = ax1.twiny()
     ax2.set_xlim(ax1.get_xlim())
     if st.session_state.axis_mode == "Weight Percent (wt%)":
@@ -366,7 +380,7 @@ if A3 > 0 and B3 > 0:
     res_c2.metric(f"Eutectic ({B_name} wt%)", f"{wtB_e:.2f} %")
     res_c3.metric(f"Eutectic ({B_name} xB)", f"{xB_e:.3f}")
 
-    # ==================== 实验相图官方链接调阅区 ====================
+    # ==================== Experimental Phase Diagram Reference ====================
     st.markdown("---")
     st.subheader("🌐 Experimental Phase Diagram Reference")
 
@@ -383,4 +397,4 @@ if A3 > 0 and B3 > 0:
         )
 
 else:
-    st.warning("请选择有效的组分及匹配项。")
+    st.warning("Please select valid components and matching parameters.")
