@@ -13,7 +13,7 @@ st.markdown(
     "Interactive Simple Eutectic Phase Diagram</h2>",
     unsafe_allow_html=True,
 )
-st.markdown("---")
+#st.markdown("---")
 
 # Initialize Session State
 if "show_metastable" not in st.session_state:
