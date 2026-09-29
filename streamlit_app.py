@@ -392,7 +392,7 @@ if A3 > 0 and B3 > 0:
 
     # Display Liquidus Equation in T - x_A form below the plot
     st.latex(
-        r"T_A(x_A) = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln x_A \right)^{-1}"
+        r"T_A = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln x_A \right)^{-1}"
     )
 
     # 5. Numerical Results (Compact Layout & Smaller Font Size)
