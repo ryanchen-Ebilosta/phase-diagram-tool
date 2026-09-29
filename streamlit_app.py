@@ -338,17 +338,6 @@ if A3 > 0 and B3 > 0:
                 vx, v_tb + 5, f"{v_tb:.1f}°C", color="red", fontsize=9, ha="center"
             )
 
-    # Add Thermodynamic Formula on the side of the phase diagram
-    formula_text = r"$\ln x_A = -\frac{\Delta_{fus}H_A}{R}\left(\frac{1}{T} - \frac{1}{T^*_A}\right)$"
-    ax1.text(
-        0.03,
-        0.87,
-        formula_text,
-        transform=ax1.transAxes,
-        fontsize=10,
-        bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", alpha=0.9),
-    )
-
     ax1.text(
         0,
         -0.12,
@@ -400,6 +389,11 @@ if A3 > 0 and B3 > 0:
     ax1.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3, fontsize=9)
 
     st.pyplot(fig)
+
+    # Display Liquidus Equation in T - x_A form below the plot
+    st.latex(
+        r"T_A(x_A) = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln x_A \right)^{-1}"
+    )
 
     # 5. Numerical Results (Compact Layout & Smaller Font Size)
     st.markdown("---")
