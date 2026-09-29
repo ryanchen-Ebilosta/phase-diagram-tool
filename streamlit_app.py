@@ -7,13 +7,11 @@ import streamlit as st
 # 1. Page Configuration
 st.set_page_config(page_title="Binary Phase Diagram Tool", layout="wide")
 
-#st.title("Interactive Simple Eutectic Phase Diagram")
 st.markdown(
-    "<h2 style='text-align: center; font-size: 24px;'>"
+    "<h2 style='text-align: center; font-size: 22px; margin-bottom: 10px;'>"
     "Interactive Simple Eutectic Phase Diagram</h2>",
     unsafe_allow_html=True,
 )
-#st.markdown("---")
 
 # Initialize Session State
 if "show_metastable" not in st.session_state:
@@ -125,9 +123,7 @@ if df_db is not None and "Name" in df_db.columns:
 
     st.sidebar.divider()
 
-    # ---------------------------------------------------------
     # Sidebar: Component B Selection
-    # ---------------------------------------------------------
     st.sidebar.subheader("Component B (Right)")
     matches = ["Custom Component B"]
 
@@ -200,9 +196,9 @@ else:
 
 st.sidebar.divider()
 
-# Sidebar: Interactive Tools
+# Sidebar: Interactive Tools (Compact layout with input and button on the same row)
 st.sidebar.subheader("Interactive Tools")
-if st.sidebar.button("Switch X-Axis Mode"):
+if st.sidebar.button("Switch X-Axis Mode", use_container_width=True):
     st.session_state.axis_mode = (
         "Mole Fraction (xB)"
         if st.session_state.axis_mode == "Weight Percent (wt%)"
@@ -211,13 +207,24 @@ if st.sidebar.button("Switch X-Axis Mode"):
     st.session_state.v_line_pos = None
 
 max_val = 100.0 if "wt" in st.session_state.axis_mode else 1.0
-target_val = st.sidebar.number_input(
-    f"Input Comp. ({st.session_state.axis_mode})", 0.0, max_val, max_val / 2
-)
-if st.sidebar.button("Apply Vertical Line"):
-    st.session_state.v_line_pos = target_val
 
-if st.sidebar.button("Toggle Metastable Lines"):
+# Put input and button on the same row
+col_in1, col_in2 = st.sidebar.columns([1.4, 1])
+with col_in1:
+    target_val = st.number_input(
+        f"Comp. ({st.session_state.axis_mode})",
+        0.0,
+        max_val,
+        max_val / 2,
+        key="target_comp_input",
+    )
+with col_in2:
+    st.write("")  # Vertical alignment spacing
+    st.write("")
+    if st.button("Apply V-Line", use_container_width=True):
+        st.session_state.v_line_pos = target_val
+
+if st.sidebar.button("Toggle Metastable Lines", use_container_width=True):
     st.session_state.show_metastable = not st.session_state.show_metastable
 
 
@@ -250,7 +257,7 @@ def mole_to_wt_fraction(xB):
     return (xB * B1) / (xB * B1 + (1 - xB) * A1) * 100
 
 
-# Calculate Thermodynamic Data
+# Calculate Thermodynamic Data & Eutectic Point First
 if A3 > 0 and B3 > 0:
     try:
         xB_e = fsolve(lambda xb: get_TA(1 - xb) - get_TB(xb), 0.5)[0]
@@ -259,19 +266,24 @@ if A3 > 0 and B3 > 0:
     except Exception:
         xB_e, TE, wtB_e = 0.5, 0.0, 50.0
 
-    # 4. Plotting Logic
-    fig, ax1 = plt.subplots(figsize=(10, 6.5))
-    plt.subplots_adjust(bottom=0.18)
+    # 4. Plotting Logic with Dynamic Range Extension
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    plt.subplots_adjust(bottom=0.18, left=0.08, right=0.95, top=0.92)
 
+    # Dynamic extension: if eutectic is skewed, extend metastable line to midpoint between xB_e and 0 or 1
     if st.session_state.axis_mode == "Weight Percent (wt%)":
-        x_main_A = np.linspace(0, 95, 1000)
-        x_main_B = np.linspace(5, 100, 1000)
+        max_A_end = max(95.0, (wtB_e + 100.0) / 2.0)
+        min_B_start = min(5.0, wtB_e / 2.0)
+        x_main_A = np.linspace(0, max_A_end, 1000)
+        x_main_B = np.linspace(min_B_start, 100, 1000)
         xB_for_A = wt_to_mole_fraction(x_main_A)
         xB_for_B = wt_to_mole_fraction(x_main_B)
         x_limit = (0, 100)
     else:
-        x_main_A = np.linspace(0, 0.95, 1000)
-        x_main_B = np.linspace(0.05, 1, 1000)
+        max_A_end = max(0.95, (xB_e + 1.0) / 2.0)
+        min_B_start = min(0.05, xB_e / 2.0)
+        x_main_A = np.linspace(0, max_A_end, 1000)
+        x_main_B = np.linspace(min_B_start, 1.0, 1000)
         xB_for_A = x_main_A
         xB_for_B = x_main_B
         x_limit = (0, 1.0)
@@ -319,32 +331,43 @@ if A3 > 0 and B3 > 0:
                 v_ta + 5,
                 f"{v_ta:.1f}°C",
                 color="blue",
-                fontsize=10,
+                fontsize=9,
                 ha="center",
             )
             ax1.text(
-                vx, v_tb + 5, f"{v_tb:.1f}°C", color="red", fontsize=10, ha="center"
+                vx, v_tb + 5, f"{v_tb:.1f}°C", color="red", fontsize=9, ha="center"
             )
+
+    # Add Thermodynamic Formula on the side of the phase diagram
+    formula_text = r"$\ln x_A = -\frac{\Delta_{fus}H_A}{R}\left(\frac{1}{T} - \frac{1}{T^*_A}\right)$"
+    ax1.text(
+        0.03,
+        0.87,
+        formula_text,
+        transform=ax1.transAxes,
+        fontsize=10,
+        bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#cccccc", alpha=0.9),
+    )
 
     ax1.text(
         0,
-        -0.10,
+        -0.12,
         A_name,
         transform=ax1.transAxes,
         ha="center",
         va="top",
-        fontsize=14,
+        fontsize=12,
         fontweight="bold",
         color="blue",
     )
     ax1.text(
         1,
-        -0.10,
+        -0.12,
         B_name,
         transform=ax1.transAxes,
         ha="center",
         va="top",
-        fontsize=14,
+        fontsize=12,
         fontweight="bold",
         color="red",
     )
@@ -352,8 +375,8 @@ if A3 > 0 and B3 > 0:
     ax1.set_xlim(x_limit)
     all_temps = np.concatenate([T_liq_A, T_liq_B])
     ax1.set_ylim(np.min(all_temps) - 20, np.max(all_temps) + 30)
-    ax1.set_ylabel("Temperature (°C)", fontweight="bold", fontsize=14)
-    ax1.set_xlabel(st.session_state.axis_mode, fontweight="bold", fontsize=14)
+    ax1.set_ylabel("Temperature (°C)", fontweight="bold", fontsize=11)
+    ax1.set_xlabel(st.session_state.axis_mode, fontweight="bold", fontsize=11)
 
     # Twin X-Axis Setup
     ax2 = ax1.twiny()
@@ -363,37 +386,61 @@ if A3 > 0 and B3 > 0:
         ax2.set_xticks([mole_to_wt_fraction(x) for x in xB_ticks])
         ax2.set_xticklabels([f"{x:.1f}" for x in xB_ticks])
         ax2.set_xlabel(
-            f"Mole Fraction of {B_name} ($x_B$)", color="gray", fontsize=10
+            f"Mole Fraction of {B_name} ($x_B$)", color="gray", fontsize=9
         )
     else:
         wt_ticks = np.linspace(0, 100, 6)
         ax2.set_xticks([wt_to_mole_fraction(w) for w in wt_ticks])
         ax2.set_xticklabels([f"{int(x)}" for x in wt_ticks])
         ax2.set_xlabel(
-            f"Weight Percent of {B_name} (wt%)", color="gray", fontsize=10
+            f"Weight Percent of {B_name} (wt%)", color="gray", fontsize=9
         )
 
     ax1.grid(True, ls=":", alpha=0.4)
-    ax1.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3)
+    ax1.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3, fontsize=9)
 
     st.pyplot(fig)
 
-    # 5. Numerical Results
-   # st.subheader("Numerical Results")
-    st.markdown("Numerical Results")
+    # 5. Numerical Results (Compact Layout & Smaller Font Size)
+    st.markdown("---")
+    st.markdown(
+        "<p style='font-size: 15px; font-weight: bold; margin-bottom: 5px;'>Numerical Results</p>",
+        unsafe_allow_html=True,
+    )
     res_c1, res_c2, res_c3 = st.columns(3)
-    res_c1.metric("Eutectic Temperature", f"{TE:.2f} °C")
-    res_c2.metric(f"Eutectic ({B_name} wt%)", f"{wtB_e:.2f} %")
-    res_c3.metric(f"Eutectic ({B_name} xB)", f"{xB_e:.3f}")
+    with res_c1:
+        st.markdown(
+            f"<div style='text-align: center; padding: 6px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #e9ecef;'>"
+            f"<span style='font-size: 11px; color: #6c757d;'>Eutectic Temperature</span><br>"
+            f"<span style='font-size: 15px; font-weight: bold; color: #333;'>{TE:.2f} °C</span></div>",
+            unsafe_allow_html=True,
+        )
+    with res_c2:
+        st.markdown(
+            f"<div style='text-align: center; padding: 6px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #e9ecef;'>"
+            f"<span style='font-size: 11px; color: #6c757d;'>Eutectic ({B_name} wt%)</span><br>"
+            f"<span style='font-size: 15px; font-weight: bold; color: #333;'>{wtB_e:.2f} %</span></div>",
+            unsafe_allow_html=True,
+        )
+    with res_c3:
+        st.markdown(
+            f"<div style='text-align: center; padding: 6px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #e9ecef;'>"
+            f"<span style='font-size: 11px; color: #6c757d;'>Eutectic ({B_name} $x_B$)</span><br>"
+            f"<span style='font-size: 15px; font-weight: bold; color: #333;'>{xB_e:.3f}</span></div>",
+            unsafe_allow_html=True,
+        )
 
     # ==================== Experimental Phase Diagram Reference ====================
     st.markdown("---")
-    st.subheader("🌐 Experimental Phase Diagram Reference")
+    st.markdown(
+        "<p style='font-size: 15px; font-weight: bold; margin-bottom: 5px;'>🌐 Experimental Phase Diagram Reference</p>",
+        unsafe_allow_html=True,
+    )
 
     fact_url = get_fact_url(A_name, B_name, df_link)
     if fact_url:
         st.link_button(
-            f"🔗 Open the standard Phase Diagram of {A_name}-{B_name} in FACT-Web",
+            f"🔗 Open standard Phase Diagram of {A_name}-{B_name} in FACT-Web",
             fact_url,
             use_container_width=True,
         )
