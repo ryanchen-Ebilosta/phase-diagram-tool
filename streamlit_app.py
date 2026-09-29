@@ -375,7 +375,7 @@ if A3 > 0 and B3 > 0:
         ax2.set_xticks([mole_to_wt_fraction(x) for x in xB_ticks])
         ax2.set_xticklabels([f"{x:.1f}" for x in xB_ticks])
         ax2.set_xlabel(
-            f"Mole Fraction of {B_name} ($x_B$)", color="gray", fontsize=9
+            f"Mole Fraction of {B_name} (x_B)", color="gray", fontsize=9
         )
     else:
         wt_ticks = np.linspace(0, 100, 6)
