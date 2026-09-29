@@ -375,7 +375,7 @@ if A3 > 0 and B3 > 0:
         ax2.set_xticks([mole_to_wt_fraction(x) for x in xB_ticks])
         ax2.set_xticklabels([f"{x:.1f}" for x in xB_ticks])
         ax2.set_xlabel(
-            f"Mole Fraction of {B_name} (x_B)", color="gray", fontsize=9
+            f"Mole Fraction of {B_name} ($x_B$)", color="gray", fontsize=9
         )
     else:
         wt_ticks = np.linspace(0, 100, 6)
@@ -419,7 +419,7 @@ if A3 > 0 and B3 > 0:
     with res_c3:
         st.markdown(
             f"<div style='text-align: center; padding: 6px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #e9ecef;'>"
-            f"<span style='font-size: 11px; color: #6c757d;'>Eutectic ({B_name} $x_B$)</span><br>"
+            f"<span style='font-size: 11px; color: #6c757d;'>Eutectic ({B_name} x_B)</span><br>"
             f"<span style='font-size: 15px; font-weight: bold; color: #333;'>{xB_e:.3f}</span></div>",
             unsafe_allow_html=True,
         )
