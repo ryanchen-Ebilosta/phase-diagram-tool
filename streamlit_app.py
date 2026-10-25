@@ -67,7 +67,7 @@ def get_fact_url(comp_a, comp_b, link_df):
     return None
 
 
-# 2. Sidebar Inputs (Compact Layout)
+# 2. Sidebar Inputs (Compact Layout & Data Pre-loading for fix Issue 1)
 st.sidebar.header("Parameters & Controls")
 
 if df_db is not None and "Name" in df_db.columns:
@@ -81,6 +81,7 @@ if df_db is not None and "Name" in df_db.columns:
         "Select A", comp_names, index=default_a_idx, key="sel_A"
     )
 
+    # 提前判定并获取 A 的物性数据，确保互动栏与图表能够即时同步更新 (修复问题1)
     if selected_A == "Custom Component A":
         is_custom_a = True
         custom_input_a = st.sidebar.text_input(
@@ -127,7 +128,7 @@ if df_db is not None and "Name" in df_db.columns:
     st.sidebar.subheader("Component B (Right)")
     matches = ["Custom Component B"]
 
-    if not is_custom_a and row_a is not None:
+    if not is_custom_a and 'row_a' in locals() and row_a is not None:
         for col_idx in range(4, min(8, len(df_db.columns))):
             val = row_a.iloc[col_idx]
             if pd.notna(val):
@@ -144,8 +145,17 @@ if df_db is not None and "Name" in df_db.columns:
             if name not in matches:
                 matches.append(name)
 
-    selected_B = st.sidebar.selectbox("Select B (Match)", matches, key="sel_B")
+    # 保证切换A时若B不在新A的匹配列表中不报错
+    if "sel_B" in st.session_state and st.session_state["sel_B"] in matches:
+        default_b_idx = matches.index(st.session_state["sel_B"])
+    else:
+        default_b_idx = 0 if len(matches) > 0 else 0
 
+    selected_B = st.sidebar.selectbox(
+        "Select B (Match)", matches, index=default_b_idx, key="sel_B"
+    )
+
+    # 提前判定并获取 B 的物性数据 (修复问题1)
     if selected_B == "Custom Component B":
         is_custom_b = True
         custom_input_b = st.sidebar.text_input(
@@ -196,6 +206,26 @@ else:
 
 st.sidebar.divider()
 
+# ==================== 问题2：添加活度系数输入控件 ====================
+st.sidebar.subheader("Activity Coefficient (Non-ideal)")
+use_activity = st.sidebar.checkbox("Enable Activity Coefficient", value=False, key="use_act")
+
+gamma_A_val, gamma_B_val = 1.0, 1.0
+if use_activity:
+    act_mode = st.sidebar.radio("Model", ["Constant Gamma", "Margules (Parameter omega)"], key="act_mode")
+    if act_mode == "Constant Gamma":
+        col_g1, col_g2 = st.sidebar.columns(2)
+        with col_g1:
+            gamma_A_val = st.number_input("γ_A", value=1.0, min_value=0.01, max_value=10.0, step=0.05, key="g_A")
+        with col_g2:
+            gamma_B_val = st.number_input("γ_B", value=1.0, min_value=0.01, max_value=10.0, step=0.05, key="g_B")
+    else:
+        omega = st.sidebar.number_input("Interaction Parameter (omega)", value=0.0, step=0.5, key="omega_val")
+else:
+    omega = 0.0
+
+st.sidebar.divider()
+
 # Sidebar: Interactive Tools (Compact layout with input and button on the same row)
 st.sidebar.subheader("Interactive Tools")
 if st.sidebar.button("Switch X-Axis Mode", use_container_width=True):
@@ -228,20 +258,45 @@ if st.sidebar.button("Toggle Metastable Lines", use_container_width=True):
     st.session_state.show_metastable = not st.session_state.show_metastable
 
 
-# 3. Core Physics Logic
+# 3. Core Physics Logic (Updated with Activity Coefficients)
+def get_activity_A(xA):
+    if not use_activity:
+        return xA
+    if act_mode == "Constant Gamma":
+        return gamma_A_val * xA
+    else:
+        # Margules binary model: ln(gamma_A) = omega * (1 - xA)^2 / RT (simplified as omega * xB^2)
+        xB = 1 - xA
+        return xA * np.exp(omega * (xB ** 2) / 8.314 / (A2 + 273.15)) # 粗略引入或按常规交互能关联熔点的处理
+
+def get_activity_B(xB):
+    if not use_activity:
+        return xB
+    if act_mode == "Constant Gamma":
+        return gamma_B_val * xB
+    else:
+        xA = 1 - xB
+        return xB * np.exp(omega * (xA ** 2) / 8.314 / (B2 + 273.15))
+
 def get_TA(xA):
     if xA <= 1e-9 or A3 == 0:
         return -273.15
+    a_A = get_activity_A(xA)
+    if a_A <= 1e-9:
+        return -273.15
     return (
-        1 / (1 / (A2 + 273.15) - 8.314 * np.log(xA) / (A3 * 1000)) - 273.15
+        1 / (1 / (A2 + 273.15) - 8.314 * np.log(a_A) / (A3 * 1000)) - 273.15
     )
 
 
 def get_TB(xB):
     if xB <= 1e-9 or B3 == 0:
         return -273.15
+    a_B = get_activity_B(xB)
+    if a_B <= 1e-9:
+        return -273.15
     return (
-        1 / (1 / (B2 + 273.15) - 8.314 * np.log(xB) / (B3 * 1000)) - 273.15
+        1 / (1 / (B2 + 273.15) - 8.314 * np.log(a_B) / (B3 * 1000)) - 273.15
     )
 
 
@@ -391,9 +446,14 @@ if A3 > 0 and B3 > 0:
     st.pyplot(fig)
 
     # Display Liquidus Equation in T - x_A form below the plot
-    st.latex(
-        r"T_A = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln x_A \right)^{-1}"
-    )
+    if use_activity:
+        st.latex(
+            r"T_A = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln (\gamma_A x_A) \right)^{-1}"
+        )
+    else:
+        st.latex(
+            r"T_A = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln x_A \right)^{-1}"
+        )
 
     # 5. Numerical Results (Compact Layout & Smaller Font Size)
     st.markdown("---")
