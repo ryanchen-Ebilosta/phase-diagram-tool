@@ -81,7 +81,7 @@ if df_db is not None and "Name" in df_db.columns:
         "Select A", comp_names, index=default_a_idx, key="sel_A"
     )
 
-    # 提前判定并获取 A 的物性数据，确保互动栏与图表能够即时同步更新 (修复问题1)
+    # 获取 A 的物性数据
     if selected_A == "Custom Component A":
         is_custom_a = True
         custom_input_a = st.sidebar.text_input(
@@ -114,12 +114,12 @@ if df_db is not None and "Name" in df_db.columns:
 
         col_a1, col_a2, col_a3 = st.sidebar.columns(3)
         with col_a1:
-            st.number_input("MW", value=A1, disabled=True, key="dis_A1")
+            st.number_input("MW", value=A1, disabled=True, key=f"dis_A1_{A_name}")
         with col_a2:
-            st.number_input("MP (°C)", value=A2, disabled=True, key="dis_A2")
+            st.number_input("MP (°C)", value=A2, disabled=True, key=f"dis_A2_{A_name}")
         with col_a3:
             st.number_input(
-                "Enthalpy", value=A3, disabled=True, key="dis_A3"
+                "Enthalpy", value=A3, disabled=True, key=f"dis_A3_{A_name}"
             )
 
     st.sidebar.divider()
@@ -145,7 +145,6 @@ if df_db is not None and "Name" in df_db.columns:
             if name not in matches:
                 matches.append(name)
 
-    # 保证切换A时若B不在新A的匹配列表中不报错
     if "sel_B" in st.session_state and st.session_state["sel_B"] in matches:
         default_b_idx = matches.index(st.session_state["sel_B"])
     else:
@@ -155,7 +154,7 @@ if df_db is not None and "Name" in df_db.columns:
         "Select B (Match)", matches, index=default_b_idx, key="sel_B"
     )
 
-    # 提前判定并获取 B 的物性数据 (修复问题1)
+    # 获取 B 的物性数据
     if selected_B == "Custom Component B":
         is_custom_b = True
         custom_input_b = st.sidebar.text_input(
@@ -188,12 +187,12 @@ if df_db is not None and "Name" in df_db.columns:
 
         col_b1, col_b2, col_b3 = st.sidebar.columns(3)
         with col_b1:
-            st.number_input("MW ", value=B1, disabled=True, key="dis_B1")
+            st.number_input("MW ", value=B1, disabled=True, key=f"dis_B1_{B_name}")
         with col_b2:
-            st.number_input("MP (°C) ", value=B2, disabled=True, key="dis_B2")
+            st.number_input("MP (°C) ", value=B2, disabled=True, key=f"dis_B2_{B_name}")
         with col_b3:
             st.number_input(
-                "Enthalpy ", value=B3, disabled=True, key="dis_B3"
+                "Enthalpy ", value=B3, disabled=True, key=f"dis_B3_{B_name}"
             )
 
 else:
@@ -226,7 +225,7 @@ else:
 
 st.sidebar.divider()
 
-# Sidebar: Interactive Tools (Compact layout with input and button on the same row)
+# Sidebar: Interactive Tools
 st.sidebar.subheader("Interactive Tools")
 if st.sidebar.button("Switch X-Axis Mode", use_container_width=True):
     st.session_state.axis_mode = (
@@ -238,7 +237,6 @@ if st.sidebar.button("Switch X-Axis Mode", use_container_width=True):
 
 max_val = 100.0 if "wt" in st.session_state.axis_mode else 1.0
 
-# Put input and button on the same row
 col_in1, col_in2 = st.sidebar.columns([1.4, 1])
 with col_in1:
     target_val = st.number_input(
@@ -249,7 +247,7 @@ with col_in1:
         key="target_comp_input",
     )
 with col_in2:
-    st.write("")  # Vertical alignment spacing
+    st.write("")
     st.write("")
     if st.button("Apply V-Line", use_container_width=True):
         st.session_state.v_line_pos = target_val
@@ -258,16 +256,15 @@ if st.sidebar.button("Toggle Metastable Lines", use_container_width=True):
     st.session_state.show_metastable = not st.session_state.show_metastable
 
 
-# 3. Core Physics Logic (Updated with Activity Coefficients)
+# 3. Core Physics Logic
 def get_activity_A(xA):
     if not use_activity:
         return xA
     if act_mode == "Constant Gamma":
         return gamma_A_val * xA
     else:
-        # Margules binary model: ln(gamma_A) = omega * (1 - xA)^2 / RT (simplified as omega * xB^2)
         xB = 1 - xA
-        return xA * np.exp(omega * (xB ** 2) / 8.314 / (A2 + 273.15)) # 粗略引入或按常规交互能关联熔点的处理
+        return xA * np.exp(omega * (xB ** 2) / 8.314 / (A2 + 273.15))
 
 def get_activity_B(xB):
     if not use_activity:
@@ -321,11 +318,10 @@ if A3 > 0 and B3 > 0:
     except Exception:
         xB_e, TE, wtB_e = 0.5, 0.0, 50.0
 
-    # 4. Plotting Logic with Dynamic Range Extension
+    # 4. Plotting Logic
     fig, ax1 = plt.subplots(figsize=(10, 6))
     plt.subplots_adjust(bottom=0.18, left=0.08, right=0.95, top=0.92)
 
-    # Dynamic extension: if eutectic is skewed, extend metastable line to midpoint between xB_e and 0 or 1
     if st.session_state.axis_mode == "Weight Percent (wt%)":
         max_A_end = max(95.0, (wtB_e + 100.0) / 2.0)
         min_B_start = min(5.0, wtB_e / 2.0)
@@ -445,7 +441,7 @@ if A3 > 0 and B3 > 0:
 
     st.pyplot(fig)
 
-    # Display Liquidus Equation in T - x_A form below the plot
+    # Display Liquidus Equation
     if use_activity:
         st.latex(
             r"T_A = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln (\gamma_A x_A) \right)^{-1}"
@@ -455,7 +451,7 @@ if A3 > 0 and B3 > 0:
             r"T_A = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln x_A \right)^{-1}"
         )
 
-    # 5. Numerical Results (Compact Layout & Smaller Font Size)
+    # 5. Numerical Results
     st.markdown("---")
     st.markdown(
         "<p style='font-size: 15px; font-weight: bold; margin-bottom: 5px;'>Numerical Results</p>",
