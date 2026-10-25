@@ -67,7 +67,7 @@ def get_fact_url(comp_a, comp_b, link_df):
     return None
 
 
-# 2. Sidebar Inputs (Compact Layout & Data Pre-loading for fix Issue 1)
+# 2. Sidebar Inputs (Compact Layout & Data Pre-loading)
 st.sidebar.header("Parameters & Controls")
 
 if df_db is not None and "Name" in df_db.columns:
@@ -205,23 +205,15 @@ else:
 
 st.sidebar.divider()
 
-# ==================== 问题2：添加活度系数输入控件 ====================
-st.sidebar.subheader("Activity Coefficient (Non-ideal)")
-use_activity = st.sidebar.checkbox("Enable Activity Coefficient", value=False, key="use_act")
+# ==================== 修正后的活度系数控制模块 (符合热力学边界) ====================
+st.sidebar.subheader("Activity / Non-ideality")
+use_activity = st.sidebar.checkbox("Enable Non-ideal Solution Model", value=False, key="use_act")
 
-gamma_A_val, gamma_B_val = 1.0, 1.0
+alpha = 0.0
 if use_activity:
-    act_mode = st.sidebar.radio("Model", ["Constant Gamma", "Margules (Parameter omega)"], key="act_mode")
-    if act_mode == "Constant Gamma":
-        col_g1, col_g2 = st.sidebar.columns(2)
-        with col_g1:
-            gamma_A_val = st.number_input("γ_A", value=1.0, min_value=0.01, max_value=10.0, step=0.05, key="g_A")
-        with col_g2:
-            gamma_B_val = st.number_input("γ_B", value=1.0, min_value=0.01, max_value=10.0, step=0.05, key="g_B")
-    else:
-        omega = st.sidebar.number_input("Interaction Parameter (omega)", value=0.0, step=0.5, key="omega_val")
-else:
-    omega = 0.0
+    model_type = st.sidebar.radio("Model Type", ["Regular Solution (Margules Parameter α)"], key="act_model")
+    # α > 0 表示正偏差（倾向分层/共晶倾向增强），α < 0 表示负偏差（倾向生成化合物或吸引）
+    alpha = st.sidebar.number_input("Interaction Parameter (α)", value=0.0, step=0.2, format="%.2f", key="alpha_val")
 
 st.sidebar.divider()
 
@@ -256,26 +248,27 @@ if st.sidebar.button("Toggle Metastable Lines", use_container_width=True):
     st.session_state.show_metastable = not st.session_state.show_metastable
 
 
-# 3. Core Physics Logic
+# 3. Core Physics Logic (严格满足边界条件：x=1 时活度系数回归为1)
 def get_activity_A(xA):
-    if not use_activity:
+    """计算组分A的活度 a_A = gamma_A * xA，当 xA=1 时自动回归为 1"""
+    if not use_activity or abs(alpha) < 1e-6:
         return xA
-    if act_mode == "Constant Gamma":
-        return gamma_A_val * xA
-    else:
-        xB = 1 - xA
-        return xA * np.exp(omega * (xB ** 2) / 8.314 / (A2 + 273.15))
+    xB = 1.0 - xA
+    # Margules模型: ln(gamma_A) = alpha * xB^2
+    ln_gamma_A = alpha * (xB ** 2)
+    return xA * np.exp(ln_gamma_A)
 
 def get_activity_B(xB):
-    if not use_activity:
+    """计算组分B的活度 a_B = gamma_B * xB，当 xB=1 时自动回归为 1"""
+    if not use_activity or abs(alpha) < 1e-6:
         return xB
-    if act_mode == "Constant Gamma":
-        return gamma_B_val * xB
-    else:
-        xA = 1 - xB
-        return xB * np.exp(omega * (xA ** 2) / 8.314 / (B2 + 273.15))
+    xA = 1.0 - xB
+    # Margules模型: ln(gamma_B) = alpha * xA^2
+    ln_gamma_B = alpha * (xA ** 2)
+    return xB * np.exp(ln_gamma_B)
 
 def get_TA(xA):
+    """计算液相线温度 T_A (输入为溶剂A的摩尔分率 xA)"""
     if xA <= 1e-9 or A3 == 0:
         return -273.15
     a_A = get_activity_A(xA)
@@ -285,8 +278,8 @@ def get_TA(xA):
         1 / (1 / (A2 + 273.15) - 8.314 * np.log(a_A) / (A3 * 1000)) - 273.15
     )
 
-
 def get_TB(xB):
+    """计算液相线温度 T_B (输入为溶剂B的摩尔分率 xB)"""
     if xB <= 1e-9 or B3 == 0:
         return -273.15
     a_B = get_activity_B(xB)
@@ -312,6 +305,7 @@ def mole_to_wt_fraction(xB):
 # Calculate Thermodynamic Data & Eutectic Point First
 if A3 > 0 and B3 > 0:
     try:
+        # 求解共讯点：get_TA(1 - xb) 代表以A为溶剂时的液相线，get_TB(xb) 代表以B为溶剂时的液相线
         xB_e = fsolve(lambda xb: get_TA(1 - xb) - get_TB(xb), 0.5)[0]
         TE = get_TA(1 - xB_e)
         wtB_e = mole_to_wt_fraction(xB_e)
@@ -441,10 +435,10 @@ if A3 > 0 and B3 > 0:
 
     st.pyplot(fig)
 
-    # Display Liquidus Equation
-    if use_activity:
+    # Display Liquidus Equation (Dynamic based on model)
+    if use_activity and abs(alpha) > 1e-6:
         st.latex(
-            r"T_A = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln (\gamma_A x_A) \right)^{-1}"
+            r"T_A = \left( \frac{1}{T^*_A} - \frac{R}{\Delta_{\text{fus}}H_A} \ln (x_A e^{\alpha x_B^2}) \right)^{-1}"
         )
     else:
         st.latex(
